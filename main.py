@@ -68,6 +68,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--max-iterations", type=int, default=None, help="Max executor/reviewer passes.")
     parser.add_argument("--no-router", action="store_true", help="Skip the router; use the default workflow.")
+    parser.add_argument("--skills", metavar="A,B", help="Extra skill names to inject (comma-separated).")
+    parser.add_argument("--default-prompt", metavar="TEXT", help="Guidance injected into every agent.")
+    pr = parser.add_mutually_exclusive_group()
+    pr.add_argument("--open-pr", dest="open_pr", action="store_true", default=None,
+                    help="Force opening a PR after review passes.")
+    pr.add_argument("--no-pr", dest="open_pr", action="store_false",
+                    help="Never open a PR, even if the workflow would.")
     parser.add_argument("--state", metavar="PATH", help="Checkpoint file: state is saved after each phase.")
     parser.add_argument("--resume", action="store_true", help="Continue an interrupted run from --state.")
     parser.add_argument("--json", action="store_true", help="Print the result as JSON.")
@@ -97,6 +104,12 @@ def main(argv: list[str] | None = None) -> int:
         config.max_iterations = args.max_iterations
     if args.no_router:
         config.use_router = False
+    if args.skills:
+        config.skills = config.skills + [s.strip() for s in args.skills.split(",") if s.strip()]
+    if args.default_prompt is not None:
+        config.default_prompt = args.default_prompt
+    if args.open_pr is not None:
+        config.open_pr = args.open_pr
 
     # Live agent narrative goes to stderr; stdout is reserved for the result.
     emit = null_sink if args.quiet else ConsoleSink(sys.stderr)
@@ -129,6 +142,8 @@ def _print_human(result) -> None:
     print(f"STATUS:    {result.status}")
     print(f"WORKFLOW:  {result.workflow}")
     print(f"ITERATIONS:{result.iterations}")
+    if result.pull_request:
+        print(f"PULL REQUEST: {result.pull_request}")
     print(line)
     if result.modified_files:
         print("MODIFIED FILES:")

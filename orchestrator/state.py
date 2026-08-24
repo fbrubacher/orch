@@ -65,6 +65,7 @@ class WorkflowState:
     reviewer_feedback: Optional[ReviewerOutput] = None
     iteration: int = 0
     history: list[IterationRecord] = field(default_factory=list)
+    pull_request: str = ""
     run_id: str = field(default_factory=_new_run_id)
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
@@ -85,6 +86,7 @@ class WorkflowState:
             "validation_output": self.validation_output,
             "reviewer_feedback": self.reviewer_feedback.model_dump() if self.reviewer_feedback else None,
             "iteration": self.iteration,
+            "pull_request": self.pull_request,
             "history": [record.to_dict() for record in self.history],
         }
 
@@ -105,6 +107,7 @@ class WorkflowState:
             reviewer_feedback=ReviewerOutput.model_validate(feedback) if feedback else None,
             iteration=data.get("iteration", 0),
             history=[IterationRecord.from_dict(r) for r in data.get("history", [])],
+            pull_request=data.get("pull_request", ""),
             run_id=data.get("run_id", _new_run_id()),
             created_at=data.get("created_at", time.time()),
         )
@@ -123,6 +126,7 @@ class OrchestratorResult:
     plan: Optional[PlannerOutput] = None
     review: Optional[ReviewerOutput] = None
     git_diff: str = ""
+    pull_request: str = ""
     error: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -133,6 +137,7 @@ class OrchestratorResult:
             "iterations": self.iterations,
             "summary": self.summary,
             "modified_files": self.modified_files,
+            "pull_request": self.pull_request,
             "plan": self.plan.model_dump() if self.plan else None,
             "review": self.review.model_dump() if self.review else None,
             "error": self.error,

@@ -10,7 +10,7 @@ from schemas import PlannerOutput
 from tools import ToolRegistry
 
 from .base import Agent
-from .prompt_loader import load_prompt
+from .prompt_loader import compose, load_prompt
 
 
 @dataclass
@@ -30,11 +30,12 @@ class ExecutorAgent:
         temperature: float | None = None,
         max_tool_iterations: int = 60,
         emit: EventSink = null_sink,
+        extra: str = "",
     ) -> None:
         self._agent = Agent(
             name="executor",
             model=model,
-            system_prompt=load_prompt("executor"),
+            system_prompt=compose(load_prompt("executor"), extra),
             client=client,
             tools=tools,
             temperature=temperature,

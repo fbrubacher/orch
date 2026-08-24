@@ -8,7 +8,7 @@ from schemas import RouterOutput
 from tools import ToolRegistry
 
 from .base import Agent, parse_json_object
-from .prompt_loader import load_prompt
+from .prompt_loader import compose, load_prompt
 
 
 class RouterAgent:
@@ -21,11 +21,12 @@ class RouterAgent:
         temperature: float | None = 0.0,
         max_tool_iterations: int = 10,
         emit: EventSink = null_sink,
+        extra: str = "",
     ) -> None:
         self._agent = Agent(
             name="router",
             model=model,
-            system_prompt=load_prompt("router"),
+            system_prompt=compose(load_prompt("router"), extra),
             client=client,
             tools=tools,
             temperature=temperature,

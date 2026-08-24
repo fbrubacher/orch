@@ -89,6 +89,34 @@ Orchestrator(emit=ConsoleSink(sys.stderr)).run(task="...", repository=".")
 Any `Callable[[events.Event], None]` works as a sink (e.g. append to a list, push
 to a websocket, write JSONL) — `ConsoleSink` is just the default.
 
+### Skills & policies
+
+A **skill** is a reusable, named block of guidance (`skills/<name>.md`) injected
+into an agent's prompt at runtime — your standing operating rules, separate from
+the per-task request. A global **default prompt** is injected into *every* agent.
+
+Two built-ins ship on by default for code-changing workflows:
+
+- **`atomic-commits`** (executor): work on an `orch/…` branch and commit each
+  logical change as a small, Conventional-Commits commit — not one big commit.
+- **`open-pr`** (finalizer): **after** the reviewer returns PASS, push the branch
+  and open a PR with `gh` (never merges). Auto-skipped if the target isn't a git
+  repo, has no `origin` remote, or `gh` isn't installed.
+
+So a coding run commits in small steps as it goes and, once verified, opens a PR —
+its URL comes back on `result.pull_request` and prints as `PULL REQUEST: …`.
+
+```bash
+orch --task "Add OAuth login" --repo .                 # defaults: atomic-commits + open-pr
+orch --task "..." --skills atomic-commits              # add extra skills
+orch --task "..." --no-pr                              # commit atomically but don't open a PR
+orch --task "..." --default-prompt "Match existing style; keep diffs minimal."
+```
+
+Configure via env (`ORCH_SKILLS`, `ORCH_DEFAULT_PROMPT`, `ORCH_OPEN_PR`), per
+workflow in [`WORKFLOWS`](orchestrator/config.py), or add your own
+`skills/<name>.md` and reference it by name. See [`skills/`](skills/) for details.
+
 ### Resume an interrupted run
 
 With `--state PATH`, the orchestrator checkpoints its `WorkflowState` to JSON after
@@ -184,6 +212,7 @@ config = OrchestratorConfig(
 orchestrator/   orchestrator.py · state.py · persistence.py · config.py · logging
 agents/         base.py (tool loop) · router · planner · executor · reviewer
 prompts/        router.md · planner.md · executor.md · reviewer.md
+skills/         reusable prompt policies (atomic-commits.md · open-pr.md · …)
 tools/          filesystem · git · shell · search · registry · workspace · factory
 models/         openrouter.py (OpenAI-compatible client)
 schemas/        planner · reviewer · router (Pydantic)

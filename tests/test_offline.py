@@ -11,13 +11,22 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agents.base import parse_json_object
+from agents.prompt_loader import compose, load_skills
 from events import THOUGHT, ConsoleSink, Event
+from orchestrator import Orchestrator
 from orchestrator.config import OrchestratorConfig, WORKFLOWS
 from orchestrator.persistence import load_state, save_state
 from orchestrator.state import IterationRecord, WorkflowState
 from schemas import PlannerOutput, ReviewerOutput, RouterOutput
 from tools import Workspace, build_tools
 from tools.registry import ToolError
+
+
+class _DummyClient:
+    """Stand-in so Orchestrator can be built without an API key (no calls made)."""
+
+    def chat(self, *a, **k):  # pragma: no cover - never invoked in these tests
+        raise AssertionError("network should not be used in offline tests")
 
 
 # ---- JSON parsing -----------------------------------------------------------
@@ -146,6 +155,76 @@ def test_atomic_save_leaves_no_tmp(tmp_path):
     save_state(path, state)
     assert path.exists()
     assert not (tmp_path / "run.json.tmp").exists()
+
+
+# ---- Skills / guidance ------------------------------------------------------
+
+def test_resolve_skills_defaults():
+    config = OrchestratorConfig()
+    assert config.resolve_skills("code_generation") == ["atomic-commits", "open-pr"]
+    assert config.resolve_skills("architecture") == []  # design workflow: none
+
+
+def test_resolve_skills_adds_config_and_dedupes():
+    config = OrchestratorConfig(skills=["atomic-commits", "my-policy"])
+    assert config.resolve_skills("bug_fix") == ["atomic-commits", "open-pr", "my-policy"]
+
+
+def test_load_skills_reports_missing():
+    text, missing = load_skills(["atomic-commits", "does-not-exist"])
+    assert "atomic" in text.lower()
+    assert missing == ["does-not-exist"]
+
+
+def test_compose_injects_guidance():
+    out = compose("BASE PROMPT", "commit atomically")
+    assert "BASE PROMPT" in out
+    assert "commit atomically" in out
+    assert compose("BASE", "") == "BASE"
+
+
+def test_guidance_gated_off_without_git(tmp_path):
+    orch = Orchestrator(config=OrchestratorConfig(), client=_DummyClient())
+    text, finalizer = orch._resolve_guidance("code_generation", Workspace(tmp_path))
+    assert text == ""          # atomic-commits dropped (not a git repo)
+    assert finalizer is False   # open-pr dropped too
+
+
+def test_guidance_git_without_remote(tmp_path):
+    import subprocess
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    orch = Orchestrator(config=OrchestratorConfig(), client=_DummyClient())
+    text, finalizer = orch._resolve_guidance("code_generation", Workspace(tmp_path))
+    assert "atomic" in text.lower()   # commits skill kept
+    assert finalizer is False          # no remote -> no PR
+
+
+def test_guidance_enabled_with_git_remote_and_gh(tmp_path):
+    import os
+    import subprocess
+    from pathlib import Path
+
+    repo = Path(tmp_path) / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "remote", "add", "origin", str(tmp_path / "remote.git")], cwd=repo, check=True)
+
+    # Fake `gh` on PATH so shutil.which finds it.
+    bindir = Path(tmp_path) / "bin"
+    bindir.mkdir()
+    gh = bindir / "gh"
+    gh.write_text("#!/bin/sh\necho https://github.com/x/y/pull/1\n")
+    gh.chmod(0o755)
+
+    old_path = os.environ.get("PATH", "")
+    os.environ["PATH"] = f"{bindir}{os.pathsep}{old_path}"
+    try:
+        orch = Orchestrator(config=OrchestratorConfig(), client=_DummyClient())
+        text, finalizer = orch._resolve_guidance("code_generation", Workspace(repo))
+        assert "atomic" in text.lower()
+        assert finalizer is True           # git + remote + gh -> PR finalizer on
+    finally:
+        os.environ["PATH"] = old_path
 
 
 # ---- Event sink -------------------------------------------------------------

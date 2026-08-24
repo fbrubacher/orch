@@ -8,7 +8,7 @@ from schemas import PlannerOutput
 from tools import ToolRegistry
 
 from .base import Agent, parse_json_object
-from .prompt_loader import load_prompt
+from .prompt_loader import compose, load_prompt
 
 
 class PlannerAgent:
@@ -21,11 +21,12 @@ class PlannerAgent:
         temperature: float | None = None,
         max_tool_iterations: int = 30,
         emit: EventSink = null_sink,
+        extra: str = "",
     ) -> None:
         self._agent = Agent(
             name="planner",
             model=model,
-            system_prompt=load_prompt("planner"),
+            system_prompt=compose(load_prompt("planner"), extra),
             client=client,
             tools=tools,
             temperature=temperature,

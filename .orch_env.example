@@ -20,3 +20,11 @@ ORCH_MODEL_STRONG=openai/gpt-5.6
 
 # Optional workflow tuning.
 ORCH_MAX_ITERATIONS=3
+
+# Guidance & policies.
+# ORCH_DEFAULT_PROMPT — extra instructions injected into EVERY agent.
+# ORCH_SKILLS         — comma-separated extra skills (skills/<name>.md) for the executor.
+# ORCH_OPEN_PR        — 1 forces opening a PR after review, 0 disables it (default: auto).
+#ORCH_DEFAULT_PROMPT=Follow the repo's existing style. Keep changes minimal.
+#ORCH_SKILLS=atomic-commits,open-pr
+#ORCH_OPEN_PR=1
