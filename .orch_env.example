@@ -1,0 +1,22 @@
+# Copy this file to .orch_env and fill in your key:  cp .orch_env.example .orch_env
+# The CLI loads .orch_env project-first: <repo>/.orch_env overrides <orch>/.orch_env.
+
+# OpenRouter API key — required.
+OPENROUTER_API_KEY=
+
+# Optional: identify your app to OpenRouter (used in rankings/headers).
+OPENROUTER_APP_URL=https://github.com/your/repo
+OPENROUTER_APP_TITLE=Coding Orchestrator
+
+# Optional model overrides (OpenRouter model ids). Any provider works, e.g.
+# anthropic/claude-opus-4.1, anthropic/claude-sonnet-4, openai/gpt-5.6, deepseek/...
+ORCH_MODEL_ROUTER=openai/gpt-5.6
+ORCH_MODEL_PLANNER=openai/gpt-5.6
+ORCH_MODEL_EXECUTOR=deepseek/deepseek-v4-pro
+ORCH_MODEL_REVIEWER=openai/gpt-5.6
+
+# Executor model used for design-heavy workflows (architecture, security).
+ORCH_MODEL_STRONG=openai/gpt-5.6
+
+# Optional workflow tuning.
+ORCH_MAX_ITERATIONS=3
